@@ -79,13 +79,52 @@ def get_adhocracy_comment_count(item_type, item_id):
                      '&count=true'
                      '&depth=all'
                      '&elements=omit') % (
-            settings.PC_SERVICES['references']['adhocracy_api_base_url'], item_type, item_id)
+                        settings.PC_SERVICES['references']['adhocracy_api_base_url'], item_type, item_id)
     except KeyError:
         log.warning('adhocracy_api_base_url is missing from settings.py.')
         return 0
 
     try:
         r = requests.get(count_url)
+    except:
+        log.warning(
+            'Unable to read comments count from adhocracy for %s/%s. Is it running at %s?',
+            item_type, item_id,
+            settings.PC_SERVICES['references']['adhocracy_api_base_url'])
+        return 0
+
+    if r.status_code == 404:
+        return 0
+    elif r.status_code == 200:
+        try:
+            return int(
+                r.json()['data']['adhocracy_core.sheets.pool.IPool']['count'])
+        except:
+            log.error(
+                'Unexpected response from adhocracy while retriving comments count for %s/%s',
+                item_type, item_id)
+            return 0
+    else:
+        log.error(
+            "Unable to read comments count from adhocracy for %s/%s with server status code %s",
+            item_type, item_id, r.status_code)
+        return 0
+
+
+def get_rating(item_type, item_id):
+    """
+    Fetch rating for given item from rating API.
+    """
+    # fetch comment counter from adhocracy
+    try:
+        api_url = ('%s/api/v1/ratingsmanager/ratings/%s_%s') % (
+            settings.PC_SERVICES['references']['base_url'], item_type, item_id)
+    except KeyError:
+        log.warning('base_url is missing from settings.py.')
+        return 0
+
+    try:
+        r = requests.get(api_url)
     except:
         log.warning(
             'Unable to read comments count from adhocracy for %s/%s. Is it running at %s?',
